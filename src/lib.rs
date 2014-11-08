@@ -57,6 +57,14 @@ impl SCGIEnv {
             None => None
         }
     }
+
+    pub fn content_length(&self) -> uint {
+        from_str(self.get("CONTENT_LENGTH").unwrap()[]).unwrap()
+    }
+
+    pub fn get_port(&self, name: &str) -> Option<u16> {
+        self.get(name).and_then(|v| from_str(v[]))
+    }
 }
 
 #[test]
