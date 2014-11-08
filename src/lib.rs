@@ -9,6 +9,7 @@ use std::io::net::pipe::{UnixListener, UnixStream, UnixAcceptor};
 use std::path::Path;
 use std::task::spawn;
 use url::form_urlencoded::parse_str;
+use url::Url;
 
 #[cfg(test)] use std::io::MemReader;
 #[cfg(test)] use std::vec::as_vec;
@@ -72,6 +73,10 @@ impl SCGIEnv {
 
     pub fn path(&self, name: &str) -> Option<Path> {
         self.get(name).and_then(|v| Path::new_opt(v))
+    }
+
+    pub fn url(&self, name: &str) -> Option<Url> {
+        self.get(name).and_then(|v| Url::parse(v[]).ok())
     }
 
     pub fn cookies(&self) -> Option<TreeMap<String, String>> {
