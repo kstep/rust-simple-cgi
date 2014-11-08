@@ -5,9 +5,9 @@ extern crate url;
 
 #[allow(unused_imports)]
 use scgi::{SCGIEnv, SCGIBind, TcpSCGIServer, UnixSCGIServer};
-use std::io::IoResult;
+use std::io::{IoResult, Stream};
 
-fn process(w: &mut Writer, env: &SCGIEnv) -> IoResult<()> {
+fn process(w: &mut Stream, env: &SCGIEnv) -> IoResult<()> {
     try!(w.write_str("Status: 200 OK\r\n"));
     try!(w.write_str("Content-Type: text/html\r\n"));
     try!(w.write_str("Set-Cookie: rust=rulez\r\n"));

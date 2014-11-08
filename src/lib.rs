@@ -100,7 +100,7 @@ impl SCGIBind<TcpListener, TcpStream, TcpAcceptor> for SCGIServer<TcpListener, T
 }
 
 impl<L, S, A> SCGIServer<L, S, A> where A: Acceptor<S>, L: Listener<S, A>, S: Stream + Send {
-    pub fn run(self, process: fn(&mut Writer, &SCGIEnv) -> IoResult<()>) {
+    pub fn run(self, process: fn(&mut Stream, &SCGIEnv) -> IoResult<()>) {
         let mut server = self.listener.listen().unwrap();
 
         for conn in server.incoming() {
