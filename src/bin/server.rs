@@ -3,7 +3,8 @@
 extern crate scgi;
 extern crate url;
 
-use scgi::{SCGIEnv, SCGIBind, TcpSCGIServer};
+#[allow(unused_imports)]
+use scgi::{SCGIEnv, SCGIBind, TcpSCGIServer, UnixSCGIServer};
 use std::io::IoResult;
 
 fn process(writer: &mut Writer, env: &SCGIEnv) -> IoResult<()> {
@@ -32,6 +33,7 @@ fn process(writer: &mut Writer, env: &SCGIEnv) -> IoResult<()> {
 
 
 fn main() {
-    let server : TcpSCGIServer = SCGIBind::new("127.0.0.1:9000").unwrap();
+    let server : TcpSCGIServer = SCGIBind::new("localhost:9000").unwrap();
+    //let server : UnixSCGIServer = SCGIBind::new("/tmp/rust-scgi-server").unwrap();
     server.run(process);
 }
