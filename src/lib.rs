@@ -6,6 +6,7 @@ use std::collections::TreeMap;
 use std::io::{IoResult, BytesReader, standard_error, InvalidInput, Acceptor, Listener, Stream};
 use std::io::net::tcp::{TcpListener, TcpStream, TcpAcceptor};
 use std::io::net::pipe::{UnixListener, UnixStream, UnixAcceptor};
+use std::path::Path;
 use std::task::spawn;
 use url::form_urlencoded::parse_str;
 
@@ -65,8 +66,12 @@ impl SCGIEnv {
         from_str(self.get("CONTENT_LENGTH").unwrap()[]).unwrap()
     }
 
-    pub fn get_port(&self, name: &str) -> Option<u16> {
+    pub fn port(&self, name: &str) -> Option<u16> {
         self.get(name).and_then(|v| from_str(v[]))
+    }
+
+    pub fn path(&self, name: &str) -> Option<Path> {
+        self.get(name).and_then(|v| Path::new_opt(v))
     }
 }
 
