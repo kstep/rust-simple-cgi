@@ -54,7 +54,20 @@ fn process(w: &mut Stream, env: &SCGIEnv) -> IoResult<()> {
             try!(w.write_str("</td></tr>"));
         }
     }
+
     try!(w.write_str("</tbody></table>"));
+
+    try!(w.write_str("<h1>Form</h1>"));
+    try!(w.write_str("<form method=\"POST\"><input type=\"text\" placeholder=\"text input\" name=\"text\" /><br><input type=\"date\" name=\"date\" placeholder=\"date input\" /><br><input type=\"submit\" /></form>"));
+
+    let content_length = env.content_length();
+    if content_length > 0 {
+        try!(w.write_str("<hr><pre>"));
+        let data = try!(w.read_exact(content_length));
+        try!(w.write(data[]));
+        try!(w.write_str("</pre>"));
+    }
+
     try!(w.write_str("</body></html>"));
 
     Ok(())
