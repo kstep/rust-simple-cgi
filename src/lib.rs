@@ -1,9 +1,12 @@
-#![feature(while_let, slicing_syntax)]
+#![feature(while_let, slicing_syntax, default_type_params)]
 
 extern crate url;
 
 use std::collections::TreeMap;
-use std::io::{IoResult, BytesReader, standard_error, InvalidInput};
+use std::io::{IoResult, BytesReader, standard_error, InvalidInput, Acceptor, Listener, Stream};
+use std::io::net::tcp::{TcpListener, TcpStream, TcpAcceptor};
+use std::io::net::pipe::{UnixListener, UnixStream, UnixAcceptor};
+use std::task::spawn;
 use url::form_urlencoded::parse_str;
 
 #[cfg(test)] use std::io::MemReader;
@@ -66,6 +69,43 @@ impl SCGIEnv {
         self.get(name).and_then(|v| from_str(v[]))
     }
 }
+
+pub struct SCGIServer<L, S, A> where A: Acceptor<S>, L: Listener<S, A>, S: Stream {
+    listener: L
+}
+
+pub trait SCGIBind<L, S, A> where A: Acceptor<S>, L: Listener<S, A>, S: Stream {
+    fn new(bind: &str) -> IoResult<SCGIServer<L, S, A>>;
+}
+
+impl SCGIBind<UnixListener, UnixStream, UnixAcceptor> for SCGIServer<UnixListener, UnixStream, UnixAcceptor> {
+    fn new(bind: &str) -> IoResult<SCGIServer<UnixListener, UnixStream, UnixAcceptor>> {
+        Ok(SCGIServer { listener: try!(UnixListener::bind(&Path::new(bind))) })
+    }
+}
+
+impl SCGIBind<TcpListener, TcpStream, TcpAcceptor> for SCGIServer<TcpListener, TcpStream, TcpAcceptor> {
+    fn new(bind: &str) -> IoResult<SCGIServer<TcpListener, TcpStream, TcpAcceptor>> {
+        Ok(SCGIServer { listener: try!(TcpListener::bind(bind)) })
+    }
+}
+
+impl<L, S, A> SCGIServer<L, S, A> where A: Acceptor<S>, L: Listener<S, A>, S: Stream + Send {
+    pub fn run(self, process: fn(&mut Writer, &SCGIEnv)) {
+        let mut server = self.listener.listen().unwrap();
+
+        for conn in server.incoming() {
+            spawn(proc() {
+                let mut stream = conn.unwrap();
+                let headers = SCGIEnv::from_reader(&mut stream).unwrap();
+                process(&mut stream, &headers);
+            })
+        }
+    }
+}
+
+pub type TcpSCGIServer = SCGIServer<TcpListener, TcpStream, TcpAcceptor>;
+pub type UnixSCGIServer = SCGIServer<UnixListener, UnixStream, UnixAcceptor>;
 
 #[test]
 fn test_read_header() {
