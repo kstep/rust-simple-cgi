@@ -73,6 +73,10 @@ impl SCGIEnv {
     pub fn path(&self, name: &str) -> Option<Path> {
         self.get(name).and_then(|v| Path::new_opt(v))
     }
+
+    pub fn cookies(&self) -> Option<TreeMap<String, String>> {
+        self.get("HTTP_COOKIE").map(|v| v.split(';').map(|c| c.splitn(1, '=')).map(|mut s| (s.next().unwrap().trim_left_chars(' ').to_string(), s.next().unwrap().to_string())).collect::<TreeMap<String, String>>())
+    }
 }
 
 pub struct SCGIServer<L, S, A> where A: Acceptor<S>, L: Listener<S, A>, S: Stream {
