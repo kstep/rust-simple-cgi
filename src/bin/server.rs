@@ -1,4 +1,4 @@
-#![feature(slicing_syntax)]
+#![feature(slicing_syntax, if_let)]
 
 extern crate scgi;
 extern crate url;
@@ -10,6 +10,8 @@ use std::io::IoResult;
 fn process(w: &mut Writer, env: &SCGIEnv) -> IoResult<()> {
     try!(w.write_str("Status: 200 OK\r\n"));
     try!(w.write_str("Content-Type: text/html\r\n"));
+    try!(w.write_str("Set-Cookie: rust=rulez\r\n"));
+    try!(w.write_str("Set-Cookie: ssid=123\r\n"));
     try!(w.write_str("\r\n"));
 
     try!(w.write_str("<!DOCTYPE html5><html><body>\n"));
@@ -26,12 +28,27 @@ fn process(w: &mut Writer, env: &SCGIEnv) -> IoResult<()> {
 
     try!(w.write_str("<h1>Query string</h1>"));
     try!(w.write_str("<table><thead><tr><th>Name</th><th>Value</th></tr></thead><tbody>"));
-    for (k, v) in env.query().unwrap().iter() {
-        try!(w.write_str("<tr><td>"));
-        try!(w.write_str(k[]));
-        try!(w.write_str("</td><td>"));
-        try!(w.write_str(v[]));
-        try!(w.write_str("</td></tr>"));
+    if let Some(query) = env.query() {
+        for (k, v) in query.iter() {
+            try!(w.write_str("<tr><td>"));
+            try!(w.write_str(k[]));
+            try!(w.write_str("</td><td>"));
+            try!(w.write_str(v[]));
+            try!(w.write_str("</td></tr>"));
+        }
+    }
+    try!(w.write_str("</tbody></table>"));
+
+    try!(w.write_str("<h1>Cookies</h1>"));
+    try!(w.write_str("<table><thead><tr><th>Name</th><th>Value</th></tr></thead><tbody>"));
+    if let Some(cookies) = env.cookies() {
+        for (k, v) in cookies.iter() {
+            try!(w.write_str("<tr><td>"));
+            try!(w.write_str(k[]));
+            try!(w.write_str("</td><td>"));
+            try!(w.write_str(v[]));
+            try!(w.write_str("</td></tr>"));
+        }
     }
     try!(w.write_str("</tbody></table>"));
 
