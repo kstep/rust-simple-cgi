@@ -14,8 +14,12 @@ fn process(w: &mut Stream, env: &SCGIEnv) -> IoResult<()> {
     try!(w.write_str("Set-Cookie: ssid=123\r\n"));
     try!(w.write_str("\r\n"));
 
-    try!(w.write_str("<!DOCTYPE html5><html><body>\n"));
-    try!(w.write_str("<h1>Headers</h1>\n"));
+    try!(w.write_str("<!DOCTYPE html5><html>"));
+    try!(w.write_str("<head>"));
+    try!(w.write_str("<title>Rust SCGI test server</title>"));
+    try!(w.write_str("</head>"));
+    try!(w.write_str("<body>"));
+    try!(w.write_str("<h1>Headers</h1>"));
     try!(w.write_str("<table><thead><tr><th>Name</th><th>Value</th></tr></thead><tbody>"));
     for (k, v) in env.env.iter() {
         try!(w.write_str("<tr><td>"));
@@ -51,8 +55,6 @@ fn process(w: &mut Stream, env: &SCGIEnv) -> IoResult<()> {
         }
     }
     try!(w.write_str("</tbody></table>"));
-
-    try!(w.write_str("</pre>"));
     try!(w.write_str("</body></html>"));
 
     Ok(())
