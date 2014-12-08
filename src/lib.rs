@@ -1,4 +1,4 @@
-#![feature(while_let, slicing_syntax, default_type_params)]
+#![feature(slicing_syntax, default_type_params)]
 
 extern crate url;
 
@@ -8,7 +8,7 @@ use std::io::net::tcp::{TcpListener, TcpStream, TcpAcceptor};
 use std::io::net::pipe::{UnixListener, UnixStream, UnixAcceptor};
 use std::path::Path;
 use std::task::spawn;
-use url::form_urlencoded::parse_str;
+use url::form_urlencoded::parse;
 use url::Url;
 
 #[cfg(test)] use std::io::MemReader;
@@ -51,14 +51,14 @@ impl SCGIEnv {
 
     pub fn query(&self) -> Option<TreeMap<String, String>> {
         match self.get("QUERY_STRING") {
-            Some(s) => Some(parse_str(s[]).into_iter().collect::<TreeMap<String, String>>()),
+            Some(s) => Some(parse(s.as_bytes()).into_iter().collect::<TreeMap<String, String>>()),
             None => None
         }
     }
 
     pub fn query_vec(&self) -> Option<Vec<(String, String)>> {
         match self.get("QUERY_STRING") {
-            Some(s) => Some(parse_str(s[])),
+            Some(s) => Some(parse(s.as_bytes())),
             None => None
         }
     }
