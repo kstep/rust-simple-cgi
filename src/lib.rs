@@ -43,10 +43,14 @@ impl SCGIEnv {
     }
 
     pub fn get(&self, name: &str) -> Option<String> {
-        match self.env.get(&name.to_string()) {
+        match self.env.get(name) {
             Some(value) => Some(value.to_string()),
             None => None
         }
+    }
+
+    pub fn method(&self) -> String {
+        self.env.get("REQUEST_METHOD").unwrap().to_string()
     }
 
     pub fn query(&self) -> Option<BTreeMap<String, String>> {
