@@ -2,21 +2,21 @@
 
 extern crate url;
 
-use std::collections::TreeMap;
+use std::collections::BTreeMap;
 use std::io::{IoResult, BytesReader, standard_error, InvalidInput, Acceptor, Listener, Stream};
 use std::io::net::tcp::{TcpListener, TcpStream, TcpAcceptor};
 use std::io::net::pipe::{UnixListener, UnixStream, UnixAcceptor};
 use std::path::Path;
-use std::task::spawn;
-use url::form_urlencoded::parse;
+use std::thread::Thread;
+use url::form_urlencoded;
 use url::Url;
 
 #[cfg(test)] use std::io::MemReader;
 #[cfg(test)] use std::vec::as_vec;
 
-#[deriving(Show)]
+#[derive(Show)]
 pub struct SCGIEnv {
-    pub env: TreeMap<String, String>
+    pub env: BTreeMap<String, String>
 }
 
 impl SCGIEnv {
@@ -29,7 +29,7 @@ impl SCGIEnv {
 
         let headers = try!(input.read_exact(length));
         let mut iter = headers.split(|b| *b == 0x0);
-        let mut map = TreeMap::new();
+        let mut map = BTreeMap::new();
 
         while let (Some(name), Some(value)) = (iter.next(), iter.next()) {
             map.insert(String::from_utf8_lossy(name).to_string(), String::from_utf8_lossy(value).to_string());
@@ -49,26 +49,26 @@ impl SCGIEnv {
         }
     }
 
-    pub fn query(&self) -> Option<TreeMap<String, String>> {
+    pub fn query(&self) -> Option<BTreeMap<String, String>> {
         match self.get("QUERY_STRING") {
-            Some(s) => Some(parse(s.as_bytes()).into_iter().collect::<TreeMap<String, String>>()),
+            Some(s) => Some(form_urlencoded::parse(s.as_bytes()).into_iter().collect::<BTreeMap<String, String>>()),
             None => None
         }
     }
 
     pub fn query_vec(&self) -> Option<Vec<(String, String)>> {
         match self.get("QUERY_STRING") {
-            Some(s) => Some(parse(s.as_bytes())),
+            Some(s) => Some(form_urlencoded::parse(s.as_bytes())),
             None => None
         }
     }
 
     pub fn content_length(&self) -> uint {
-        self.get("CONTENT_LENGTH").and_then(|v| from_str(v[])).unwrap_or(0u)
+        self.get("CONTENT_LENGTH").and_then(|v| v.parse()).unwrap_or(0u)
     }
 
     pub fn port(&self, name: &str) -> Option<u16> {
-        self.get(name).and_then(|v| from_str(v[]))
+        self.get(name).and_then(|v| v.parse())
     }
 
     pub fn path(&self, name: &str) -> Option<Path> {
@@ -79,8 +79,8 @@ impl SCGIEnv {
         self.get(name).and_then(|v| Url::parse(v[]).ok())
     }
 
-    pub fn cookies(&self) -> Option<TreeMap<String, String>> {
-        self.get("HTTP_COOKIE").map(|v| v.split(';').map(|c| c.splitn(1, '=')).map(|mut s| (s.next().unwrap().trim_left_chars(' ').to_string(), s.next().unwrap().to_string())).collect::<TreeMap<String, String>>())
+    pub fn cookies(&self) -> Option<BTreeMap<String, String>> {
+        self.get("HTTP_COOKIE").map(|v| v.split(';').map(|c| c.splitn(1, '=')).map(|mut s| (s.next().unwrap().trim_left_matches(' ').to_string(), s.next().unwrap().to_string())).collect::<BTreeMap<String, String>>())
     }
 }
 
@@ -88,38 +88,35 @@ pub struct SCGIServer<L, S, A> where A: Acceptor<S>, L: Listener<S, A>, S: Strea
     listener: L
 }
 
-pub trait SCGIBind<L, S, A> where A: Acceptor<S>, L: Listener<S, A>, S: Stream {
-    fn new(bind: &str) -> IoResult<SCGIServer<L, S, A>>;
-}
-
-impl SCGIBind<UnixListener, UnixStream, UnixAcceptor> for SCGIServer<UnixListener, UnixStream, UnixAcceptor> {
-    fn new(bind: &str) -> IoResult<SCGIServer<UnixListener, UnixStream, UnixAcceptor>> {
-        Ok(SCGIServer { listener: try!(UnixListener::bind(&Path::new(bind))) })
-    }
-}
-
-impl SCGIBind<TcpListener, TcpStream, TcpAcceptor> for SCGIServer<TcpListener, TcpStream, TcpAcceptor> {
-    fn new(bind: &str) -> IoResult<SCGIServer<TcpListener, TcpStream, TcpAcceptor>> {
-        Ok(SCGIServer { listener: try!(TcpListener::bind(bind)) })
-    }
-}
-
 impl<L, S, A> SCGIServer<L, S, A> where A: Acceptor<S>, L: Listener<S, A>, S: Stream + Send {
     pub fn run(self, process: fn(&mut Stream, &SCGIEnv) -> IoResult<()>) {
         let mut server = self.listener.listen().unwrap();
 
         for conn in server.incoming() {
-            spawn(proc() {
+            Thread::spawn(move || {
                 let mut stream = conn.unwrap();
                 let headers = SCGIEnv::from_reader(&mut stream).unwrap();
                 process(&mut stream, &headers).unwrap();
-            })
+            }).detach()
         }
     }
 }
 
 pub type TcpSCGIServer = SCGIServer<TcpListener, TcpStream, TcpAcceptor>;
 pub type UnixSCGIServer = SCGIServer<UnixListener, UnixStream, UnixAcceptor>;
+
+impl TcpSCGIServer {
+    pub fn new(bind: &str) -> IoResult<SCGIServer<UnixListener, UnixStream, UnixAcceptor>> {
+        Ok(SCGIServer { listener: try!(UnixListener::bind(&Path::new(bind))) })
+    }
+}
+
+impl UnixSCGIServer {
+    pub fn new(bind: &str) -> IoResult<SCGIServer<TcpListener, TcpStream, TcpAcceptor>> {
+        Ok(SCGIServer { listener: try!(TcpListener::bind(bind)) })
+    }
+}
+
 
 #[test]
 fn test_read_header() {
@@ -131,7 +128,7 @@ fn test_read_header() {
     let mut reader = MemReader::new(scgi_data);
     let headers = read_scgi_headers(&mut reader).unwrap();
 
-    let mut expected = TreeMap::new();
+    let mut expected = BTreeMap::new();
     expected.insert("CONTENT_LENGTH".to_string(), "27".to_string());
     expected.insert("SCGI".to_string(), "1".to_string());
     expected.insert("REQUEST_METHOD".to_string(), "POST".to_string());
@@ -139,6 +136,6 @@ fn test_read_header() {
 
     assert_eq!(headers, expected);
 
-    let body = reader.read_exact(from_str(headers["CONTENT_LENGTH".to_string()][]).unwrap()).unwrap();
+    let body = reader.read_exact(headers["CONTENT_LENGTH".to_string()].parse().unwrap()).unwrap();
     assert_eq!(body[], b"What is the answer to life?");
 }
