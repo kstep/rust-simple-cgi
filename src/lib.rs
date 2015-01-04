@@ -89,6 +89,10 @@ pub struct SCGIServer<L, S, A> where A: Acceptor<S>, L: Listener<S, A>, S: Strea
 }
 
 impl<L, S, A> SCGIServer<L, S, A> where A: Acceptor<S>, L: Listener<S, A>, S: Stream + Send {
+    pub fn new(listener: L) -> SCGIServer<L, S, A> {
+        SCGIServer { listener: listener }
+    }
+
     pub fn run(self, process: fn(&mut Stream, &SCGIEnv) -> IoResult<()>) {
         let mut server = self.listener.listen().unwrap();
 
@@ -104,19 +108,6 @@ impl<L, S, A> SCGIServer<L, S, A> where A: Acceptor<S>, L: Listener<S, A>, S: St
 
 pub type TcpSCGIServer = SCGIServer<TcpListener, TcpStream, TcpAcceptor>;
 pub type UnixSCGIServer = SCGIServer<UnixListener, UnixStream, UnixAcceptor>;
-
-impl TcpSCGIServer {
-    pub fn new(bind: &str) -> IoResult<SCGIServer<UnixListener, UnixStream, UnixAcceptor>> {
-        Ok(SCGIServer { listener: try!(UnixListener::bind(&Path::new(bind))) })
-    }
-}
-
-impl UnixSCGIServer {
-    pub fn new(bind: &str) -> IoResult<SCGIServer<TcpListener, TcpStream, TcpAcceptor>> {
-        Ok(SCGIServer { listener: try!(TcpListener::bind(bind)) })
-    }
-}
-
 
 #[test]
 fn test_read_header() {
