@@ -1,4 +1,4 @@
-#![feature(slicing_syntax, default_type_params)]
+#![feature(slicing_syntax)]
 
 extern crate url;
 
@@ -10,9 +10,6 @@ use std::path::Path;
 use std::thread::Thread;
 use url::form_urlencoded;
 use url::Url;
-
-#[cfg(test)] use std::io::MemReader;
-#[cfg(test)] use std::vec::as_vec;
 
 #[derive(Show)]
 pub struct SCGIEnv {
@@ -113,24 +110,30 @@ impl<L, S, A> SCGIServer<L, S, A> where A: Acceptor<S>, L: Listener<S, A>, S: St
 pub type TcpSCGIServer = SCGIServer<TcpListener, TcpStream, TcpAcceptor>;
 pub type UnixSCGIServer = SCGIServer<UnixListener, UnixStream, UnixAcceptor>;
 
-#[test]
-fn test_read_header() {
-    let mut scgi_data = Vec::new();
-    for b in b"70:CONTENT_LENGTH\027\0SCGI\01\0REQUEST_METHOD\0POST\0REQUEST_URI\0/deepthought\0,What is the answer to life?".iter() {
-        scgi_data.push(*b);
+#[cfg(test)]
+mod tests {
+    use std::io::MemReader;
+    use std::vec::as_vec;
+
+    #[test]
+    fn test_read_header() {
+        let mut scgi_data = Vec::new();
+        for b in b"70:CONTENT_LENGTH\027\0SCGI\01\0REQUEST_METHOD\0POST\0REQUEST_URI\0/deepthought\0,What is the answer to life?".iter() {
+            scgi_data.push(*b);
+        }
+
+        let mut reader = MemReader::new(scgi_data);
+        let headers = read_scgi_headers(&mut reader).unwrap();
+
+        let mut expected = BTreeMap::new();
+        expected.insert("CONTENT_LENGTH".to_string(), "27".to_string());
+        expected.insert("SCGI".to_string(), "1".to_string());
+        expected.insert("REQUEST_METHOD".to_string(), "POST".to_string());
+        expected.insert("REQUEST_URI".to_string(), "/deepthought".to_string());
+
+        assert_eq!(headers, expected);
+
+        let body = reader.read_exact(headers["CONTENT_LENGTH".to_string()].parse().unwrap()).unwrap();
+        assert_eq!(body[], b"What is the answer to life?");
     }
-
-    let mut reader = MemReader::new(scgi_data);
-    let headers = read_scgi_headers(&mut reader).unwrap();
-
-    let mut expected = BTreeMap::new();
-    expected.insert("CONTENT_LENGTH".to_string(), "27".to_string());
-    expected.insert("SCGI".to_string(), "1".to_string());
-    expected.insert("REQUEST_METHOD".to_string(), "POST".to_string());
-    expected.insert("REQUEST_URI".to_string(), "/deepthought".to_string());
-
-    assert_eq!(headers, expected);
-
-    let body = reader.read_exact(headers["CONTENT_LENGTH".to_string()].parse().unwrap()).unwrap();
-    assert_eq!(body[], b"What is the answer to life?");
 }
