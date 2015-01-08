@@ -16,6 +16,37 @@ pub struct SCGIEnv {
     pub env: BTreeMap<String, String>
 }
 
+pub struct MapResultIter<'a, A, B, E, I: 'a + Iterator<Item=Result<A, E>>, F: Fn(&'a A) -> B> {
+    inner: &'a mut I,
+    f: F
+}
+
+impl<'a, A: 'a, B, E, I: Iterator<Item=Result<A, E>>, F: Fn(&A) -> B> Iterator for MapResultIter<'a, A, B, E, I, F> {
+    type Item = Result<B, E>;
+    fn next(&mut self) -> Option<Result<B, E>> {
+        match self.inner.next() {
+            Some(Ok(ref v)) => Some(Ok((self.f)(v))),
+            Some(Err(e)) => Some(Err(e)),
+            None => None
+        }
+    }
+}
+
+trait MapResultExt<'a, A, E> {
+    fn result_map<B, F: Fn(&'a A) -> B>(&'a mut self, f: F) -> MapResultIter<'a, A, B, E, Self, F>;
+}
+
+impl<'a, A, E, I: Iterator<Item=Result<A, E>> + 'a> MapResultExt<'a, A, E> for I {
+    fn result_map<B, F: Fn(&'a A) -> B>(&'a mut self, f: F) -> MapResultIter<'a, A, B, E, Self, F> {
+        MapResultIter {
+            inner: self,
+            f: f
+        }
+    }
+}
+
+
+
 impl SCGIEnv {
     pub fn from_reader<T: Reader>(input: &mut T) -> IoResult<SCGIEnv> {
         let length = try!(input.bytes().take_while(|c| match *c { Ok(b) => b != 0x3a, Err(_) => false }).fold(Ok(0u),
