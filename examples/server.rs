@@ -1,4 +1,5 @@
 #![feature(slicing_syntax)]
+#![allow(unstable)]
 
 extern crate scgi;
 extern crate url;
@@ -24,9 +25,9 @@ fn process(w: &mut Stream, env: &SCGIEnv) -> IoResult<()> {
     try!(w.write_str("<table><thead><tr><th>Name</th><th>Value</th></tr></thead><tbody>"));
     for (k, v) in env.env.iter() {
         try!(w.write_str("<tr><td>"));
-        try!(w.write_str(k[]));
+        try!(w.write_str(&**k));
         try!(w.write_str("</td><td>"));
-        try!(w.write_str(v[]));
+        try!(w.write_str(&**v));
         try!(w.write_str("</td></tr>"));
     }
     try!(w.write_str("</tbody></table>"));
@@ -36,9 +37,9 @@ fn process(w: &mut Stream, env: &SCGIEnv) -> IoResult<()> {
     if let Some(query) = env.query() {
         for (k, v) in query.iter() {
             try!(w.write_str("<tr><td>"));
-            try!(w.write_str(k[]));
+            try!(w.write_str(&**k));
             try!(w.write_str("</td><td>"));
-            try!(w.write_str(v[]));
+            try!(w.write_str(&**v));
             try!(w.write_str("</td></tr>"));
         }
     }
@@ -49,9 +50,9 @@ fn process(w: &mut Stream, env: &SCGIEnv) -> IoResult<()> {
     if let Some(cookies) = env.cookies() {
         for (k, v) in cookies.iter() {
             try!(w.write_str("<tr><td>"));
-            try!(w.write_str(k[]));
+            try!(w.write_str(&**k));
             try!(w.write_str("</td><td>"));
-            try!(w.write_str(v[]));
+            try!(w.write_str(&**v));
             try!(w.write_str("</td></tr>"));
         }
     }
@@ -65,7 +66,7 @@ fn process(w: &mut Stream, env: &SCGIEnv) -> IoResult<()> {
     if content_length > 0 {
         try!(w.write_str("<hr><pre>"));
         let data = try!(w.read_exact(content_length));
-        try!(w.write(data[]));
+        try!(w.write(&*data));
         try!(w.write_str("</pre>"));
     }
 

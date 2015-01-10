@@ -1,4 +1,5 @@
 #![feature(slicing_syntax)]
+#![allow(unstable)]
 
 extern crate url;
 
@@ -49,9 +50,9 @@ impl<'a, A, E, I: Iterator<Item=Result<A, E>> + 'a> MapResultExt<'a, A, E> for I
 
 impl SCGIEnv {
     pub fn from_reader<T: Reader>(input: &mut T) -> IoResult<SCGIEnv> {
-        let length = try!(input.bytes().take_while(|c| match *c { Ok(b) => b != 0x3a, Err(_) => false }).fold(Ok(0u),
+        let length = try!(input.bytes().take_while(|c| match *c { Ok(b) => b as usize != 0x3a, Err(_) => false }).fold(Ok(0us),
             |a, c| match (a, c) {
-                (Ok(s), Ok(b)) => Ok((b as uint & 0x0f) + s * 10),
+                (Ok(s), Ok(b)) => Ok((b as usize & 0x0f) + s as usize * 10),
                 (_, Err(e)) | (Err(e), _) => Err(e)
             }));
 
@@ -95,8 +96,8 @@ impl SCGIEnv {
         }
     }
 
-    pub fn content_length(&self) -> uint {
-        self.get("CONTENT_LENGTH").and_then(|v| v.parse()).unwrap_or(0u)
+    pub fn content_length(&self) -> usize {
+        self.get("CONTENT_LENGTH").and_then(|v| v.parse()).unwrap_or(0us)
     }
 
     pub fn port(&self, name: &str) -> Option<u16> {
@@ -108,7 +109,7 @@ impl SCGIEnv {
     }
 
     pub fn url(&self, name: &str) -> Option<Url> {
-        self.get(name).and_then(|v| Url::parse(v[]).ok())
+        self.get(name).and_then(|v| Url::parse(&*v).ok())
     }
 
     pub fn cookies(&self) -> Option<BTreeMap<String, String>> {
@@ -129,7 +130,7 @@ impl<L, S, A> SCGIServer<L, S, A> where A: Acceptor<S>, L: Listener<S, A>, S: St
         let mut server = self.listener.listen().unwrap();
 
         for conn in server.incoming() {
-            Thread::spawn(move || {
+            Thread::scoped(move || {
                 let mut stream = conn.unwrap();
                 let headers = SCGIEnv::from_reader(&mut stream).unwrap();
                 process(&mut stream, &headers).unwrap();
@@ -165,6 +166,6 @@ mod tests {
         assert_eq!(headers, expected);
 
         let body = reader.read_exact(headers["CONTENT_LENGTH".to_string()].parse().unwrap()).unwrap();
-        assert_eq!(body[], b"What is the answer to life?");
+        assert_eq!(&*body, b"What is the answer to life?");
     }
 }
