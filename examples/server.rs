@@ -1,7 +1,7 @@
 #![feature(slicing_syntax)]
 #![allow(unstable)]
 
-extern crate scgi;
+extern crate "simple-cgi" as scgi;
 extern crate url;
 
 #[allow(unused_imports)]

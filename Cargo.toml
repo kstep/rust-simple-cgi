@@ -1,6 +1,6 @@
 [package]
 
-name = "scgi"
+name = "simple-cgi"
 version = "0.0.1"
 authors = ["Konstantin Stepanov <me@kstep.me>"]
 description = "A really simple SCGI server library implementation"
