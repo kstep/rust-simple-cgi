@@ -3,6 +3,10 @@
 name = "scgi"
 version = "0.0.1"
 authors = ["Konstantin Stepanov <me@kstep.me>"]
+description = "A really simple SCGI server library implementation"
+homepage = "https://github.com/kstep/rust-scgi"
+repository = "https://github.com/kstep/rust-scgi.git"
+license = "MIT"
 
 [dependencies]
 url = "*"
