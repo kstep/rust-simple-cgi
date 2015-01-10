@@ -144,8 +144,9 @@ pub type UnixSCGIServer = SCGIServer<UnixListener, UnixStream, UnixAcceptor>;
 
 #[cfg(test)]
 mod tests {
-    use std::io::MemReader;
-    use std::vec::as_vec;
+    use std::collections::BTreeMap;
+    use std::io::BufReader;
+    use super::SCGIEnv;
 
     #[test]
     fn test_read_header() {
@@ -154,8 +155,8 @@ mod tests {
             scgi_data.push(*b);
         }
 
-        let mut reader = MemReader::new(scgi_data);
-        let headers = read_scgi_headers(&mut reader).unwrap();
+        let mut reader = BufReader::new(&*scgi_data);
+        let env = SCGIEnv::from_reader(&mut reader).unwrap();
 
         let mut expected = BTreeMap::new();
         expected.insert("CONTENT_LENGTH".to_string(), "27".to_string());
@@ -163,9 +164,9 @@ mod tests {
         expected.insert("REQUEST_METHOD".to_string(), "POST".to_string());
         expected.insert("REQUEST_URI".to_string(), "/deepthought".to_string());
 
-        assert_eq!(headers, expected);
+        assert_eq!(env.env, expected);
 
-        let body = reader.read_exact(headers["CONTENT_LENGTH".to_string()].parse().unwrap()).unwrap();
+        let body = reader.read_exact(env.env["CONTENT_LENGTH".to_string()].parse().unwrap()).unwrap();
         assert_eq!(&*body, b"What is the answer to life?");
     }
 }
