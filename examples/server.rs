@@ -1,13 +1,13 @@
 #![feature(slicing_syntax)]
-#![allow(unstable)]
+#![feature(io)]
 
 extern crate "simple-cgi" as scgi;
 extern crate url;
 
 #[allow(unused_imports)]
 use scgi::{SCGIEnv, TcpSCGIServer, UnixSCGIServer, SCGIServer};
-use std::io::net::tcp::TcpListener;
-use std::io::{IoResult, Stream};
+use std::old_io::net::tcp::TcpListener;
+use std::old_io::{IoResult, Stream};
 
 fn process(w: &mut Stream, env: &SCGIEnv) -> IoResult<()> {
     try!(w.write_str("Status: 200 OK\r\n"));
@@ -66,7 +66,7 @@ fn process(w: &mut Stream, env: &SCGIEnv) -> IoResult<()> {
     if content_length > 0 {
         try!(w.write_str("<hr><pre>"));
         let data = try!(w.read_exact(content_length));
-        try!(w.write(&*data));
+        try!(w.write_all(&*data));
         try!(w.write_str("</pre>"));
     }
 

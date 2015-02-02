@@ -1,18 +1,18 @@
 #![feature(slicing_syntax)]
-#![allow(unstable)]
+#![feature(collections, core, io, path, std_misc)]
 
 extern crate url;
 
 use std::collections::BTreeMap;
-use std::io::{IoResult, BytesReader, standard_error, InvalidInput, Acceptor, Listener, Stream};
-use std::io::net::tcp::{TcpListener, TcpStream, TcpAcceptor};
-use std::io::net::pipe::{UnixListener, UnixStream, UnixAcceptor};
+use std::old_io::{IoResult, BytesReader, standard_error, InvalidInput, Acceptor, Listener, Stream};
+use std::old_io::net::tcp::{TcpListener, TcpStream, TcpAcceptor};
+use std::old_io::net::pipe::{UnixListener, UnixStream, UnixAcceptor};
 use std::path::Path;
 use std::thread::Thread;
 use url::form_urlencoded;
 use url::Url;
 
-#[derive(Show)]
+#[derive(Debug)]
 pub struct SCGIEnv {
     pub env: BTreeMap<String, String>
 }
@@ -145,7 +145,7 @@ pub type UnixSCGIServer = SCGIServer<UnixListener, UnixStream, UnixAcceptor>;
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
-    use std::io::BufReader;
+    use std::old_io::BufReader;
     use super::SCGIEnv;
 
     #[test]
