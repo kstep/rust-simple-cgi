@@ -1,5 +1,5 @@
 #![feature(slicing_syntax)]
-#![feature(io)]
+#![feature(core, io)]
 
 extern crate "simple-cgi" as scgi;
 extern crate url;

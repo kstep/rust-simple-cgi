@@ -1,5 +1,5 @@
 #![feature(slicing_syntax)]
-#![feature(collections, core, io, path, std_misc)]
+#![feature(core, io, path, std_misc)]
 
 extern crate url;
 
@@ -97,11 +97,11 @@ impl SCGIEnv {
     }
 
     pub fn content_length(&self) -> usize {
-        self.get("CONTENT_LENGTH").and_then(|v| v.parse()).unwrap_or(0us)
+        self.get("CONTENT_LENGTH").and_then(|v| v.parse().ok()).unwrap_or(0us)
     }
 
     pub fn port(&self, name: &str) -> Option<u16> {
-        self.get(name).and_then(|v| v.parse())
+        self.get(name).and_then(|v| v.parse().ok())
     }
 
     pub fn path(&self, name: &str) -> Option<Path> {
