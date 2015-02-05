@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 use std::old_io::{IoResult, BytesReader, standard_error, InvalidInput, Acceptor, Listener, Stream};
 use std::old_io::net::tcp::{TcpListener, TcpStream, TcpAcceptor};
 use std::old_io::net::pipe::{UnixListener, UnixStream, UnixAcceptor};
-use std::path::Path;
+use std::path::PathBuf;
 use std::thread::Thread;
 use url::form_urlencoded;
 use url::Url;
@@ -104,8 +104,8 @@ impl SCGIEnv {
         self.get(name).and_then(|v| v.parse().ok())
     }
 
-    pub fn path(&self, name: &str) -> Option<Path> {
-        self.get(name).and_then(|v| Path::new_opt(v))
+    pub fn path(&self, name: &str) -> Option<PathBuf> {
+        self.get(name).map(|v| PathBuf::new(&*v))
     }
 
     pub fn url(&self, name: &str) -> Option<Url> {
