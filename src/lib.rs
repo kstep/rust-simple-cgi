@@ -1,14 +1,14 @@
-#![feature(slicing_syntax)]
-#![feature(core, io, path, std_misc)]
+#![feature(old_io, path)]
 
 extern crate url;
 
 use std::collections::BTreeMap;
+use std::marker::PhantomData;
 use std::old_io::{IoResult, BytesReader, standard_error, InvalidInput, Acceptor, Listener, Stream};
 use std::old_io::net::tcp::{TcpListener, TcpStream, TcpAcceptor};
 use std::old_io::net::pipe::{UnixListener, UnixStream, UnixAcceptor};
 use std::path::PathBuf;
-use std::thread::Thread;
+use std::thread::spawn;
 use url::form_urlencoded;
 use url::Url;
 
@@ -17,40 +17,9 @@ pub struct SCGIEnv {
     pub env: BTreeMap<String, String>
 }
 
-pub struct MapResultIter<'a, A, B, E, I: 'a + Iterator<Item=Result<A, E>>, F: Fn(&'a A) -> B> {
-    inner: &'a mut I,
-    f: F
-}
-
-impl<'a, A: 'a, B, E, I: Iterator<Item=Result<A, E>>, F: Fn(&A) -> B> Iterator for MapResultIter<'a, A, B, E, I, F> {
-    type Item = Result<B, E>;
-    fn next(&mut self) -> Option<Result<B, E>> {
-        match self.inner.next() {
-            Some(Ok(ref v)) => Some(Ok((self.f)(v))),
-            Some(Err(e)) => Some(Err(e)),
-            None => None
-        }
-    }
-}
-
-trait MapResultExt<'a, A, E> {
-    fn result_map<B, F: Fn(&'a A) -> B>(&'a mut self, f: F) -> MapResultIter<'a, A, B, E, Self, F>;
-}
-
-impl<'a, A, E, I: Iterator<Item=Result<A, E>> + 'a> MapResultExt<'a, A, E> for I {
-    fn result_map<B, F: Fn(&'a A) -> B>(&'a mut self, f: F) -> MapResultIter<'a, A, B, E, Self, F> {
-        MapResultIter {
-            inner: self,
-            f: f
-        }
-    }
-}
-
-
-
 impl SCGIEnv {
     pub fn from_reader<T: Reader>(input: &mut T) -> IoResult<SCGIEnv> {
-        let length = try!(input.bytes().take_while(|c| match *c { Ok(b) => b as usize != 0x3a, Err(_) => false }).fold(Ok(0us),
+        let length = try!(input.bytes().take_while(|c| match *c { Ok(b) => b as usize != 0x3a, Err(_) => false }).fold(Ok(0),
             |a, c| match (a, c) {
                 (Ok(s), Ok(b)) => Ok((b as usize & 0x0f) + s as usize * 10),
                 (_, Err(e)) | (Err(e), _) => Err(e)
@@ -97,7 +66,7 @@ impl SCGIEnv {
     }
 
     pub fn content_length(&self) -> usize {
-        self.get("CONTENT_LENGTH").and_then(|v| v.parse().ok()).unwrap_or(0us)
+        self.get("CONTENT_LENGTH").and_then(|v| v.parse().ok()).unwrap_or(0)
     }
 
     pub fn port(&self, name: &str) -> Option<u16> {
@@ -118,23 +87,29 @@ impl SCGIEnv {
 }
 
 pub struct SCGIServer<L, S, A> where A: Acceptor<S>, L: Listener<S, A>, S: Stream {
-    listener: L
+    listener: L,
+    _marker_s: PhantomData<S>,
+    _marker_a: PhantomData<A>,
 }
 
 impl<L, S, A> SCGIServer<L, S, A> where A: Acceptor<S>, L: Listener<S, A>, S: Stream + Send {
     pub fn new(listener: L) -> SCGIServer<L, S, A> {
-        SCGIServer { listener: listener }
+        SCGIServer {
+            listener: listener,
+            _marker_s: PhantomData,
+            _marker_a: PhantomData
+        }
     }
 
-    pub fn run(self, process: fn(&mut Stream, &SCGIEnv) -> IoResult<()>) {
+    pub fn run<F>(self, process: F) where F: Fn(&mut Stream, &SCGIEnv) -> IoResult<()>, F: Copy + Send, F: 'static, S: 'static {
         let mut server = self.listener.listen().unwrap();
 
         for conn in server.incoming() {
-            Thread::scoped(move || {
+            spawn(move || {
                 let mut stream = conn.unwrap();
                 let headers = SCGIEnv::from_reader(&mut stream).unwrap();
                 process(&mut stream, &headers).unwrap();
-            }).detach()
+            });
         }
     }
 }
